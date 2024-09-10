@@ -1,5 +1,18 @@
 services:
-  # API Container
+  # Traefik (Reverse Proxy) Container
+  traefik:
+    image: traefik:v3.0.1
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+    ports:
+      - 80:80
+      - 8080:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # Laravel (RESTful APIs) Container
   api:
     build:
       args:
@@ -8,9 +21,93 @@ services:
       context: ./docker/php
       dockerfile: Dockerfile
     restart: unless-stopped
+    ports:
+      - 8000:8000
     volumes:
       - ./api:/var/www/api
     environment:
       # If you don't want to use xDebug, set remote_enable=0
       - XDEBUG_CONFIG="remote_enable=1"
       - PHP_IDE_CONFIG="serverName=Docker"
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    labels:
+      - "traefik.http.routers.api.rule=Host(`api.app.localhost`)"
+    depends_on:
+      - traefik
+      - database
+      - redis
+      - mailpit
+
+  # PostgreSQL Container
+  database:
+    image: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  # Redis Service
+  redis:
+    image: redis:latest
+    restart: unless-stopped
+
+  # Mailpit Service
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    environment:
+      MAILPIT_HOST: 0.0.0.0
+      MAILPIT_PORT: 8025
+      MAILPIT_USER: ${MAIL_USERNAME}
+      MAILPIT_PASSWORD: ${MAIL_PASSWORD}
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    volumes:
+      - mailpit:/data
+    labels:
+      - "traefik.http.routers.mailpit.rule=Host(`mailpit.localhost`)"
+      - "traefik.http.services.mailpit.loadbalancer.server.port=8025"
+
+  # Supervisor Container (schedule and queue runner)
+  supervisor:
+    build:
+      context: docker/supervisor
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/var/www/
+      - ./docker/supervisor/conf.d:/etc/supervisor/conf.d
+      - ./docker/supervisor/logs:/var/log
+    depends_on:
+      - api
+
+  # Web container (Nuxt app)
+  web:
+    build:
+      context: docker/web
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    volumes:
+      - ./web:/var/www/web
+    labels:
+      - "traefik.http.routers.app.rule=Host(`app.localhost`)"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+    depends_on:
+      - api
+
+volumes:
+  db-data:
+    driver: local
+  redis:
+    driver: local
+  mailpit:
+    driver: local

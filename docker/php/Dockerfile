@@ -75,5 +75,14 @@ RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 # Set up default directory
 WORKDIR /var/www/api
 
+# Copier le script entrypoint dans l'image
+COPY ./entrypoint.sh /usr/local/bin/entrypoint.sh
+
+# Donner les permissions d'exécution
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Définir l'entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
 # Switch to non-root user
 USER $user

@@ -16,6 +16,9 @@ docs/_static
 docs/_templates
 .gopath/
 .dotcloud
+.env
+.env.backup
+.env.production
 *.test
 bundles/
 .hg/
