@@ -51,6 +51,9 @@
         ],
         "pint": [
             "@php ./vendor/bin/pint"
+        ],
+        "pest": [
+            "@php ./vendor/bin/pest"
         ]
     },
     "extra": {
