@@ -1,5 +1,16 @@
 services:
+  # API Container
   api:
     build:
+      args:
+        - user=stekos
+        - uid=1000
       context: ./docker/php
       dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./api:/var/www/api
+    environment:
+      # If you don't want to use xDebug, set remote_enable=0
+      - XDEBUG_CONFIG="remote_enable=1"
+      - PHP_IDE_CONFIG="serverName=Docker"
