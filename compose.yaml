@@ -1,0 +1,5 @@
+services:
+  api:
+    build:
+      context: ./docker/php
+      dockerfile: Dockerfile
